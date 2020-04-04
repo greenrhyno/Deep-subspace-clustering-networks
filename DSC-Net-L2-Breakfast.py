@@ -19,32 +19,62 @@ import os
 import ipdb
 
 
-class ConvAE(object):
-	def __init__(self, *, input_dim, n_hidden, logs_path, model_path = None, reg_const1 = 1.0, reg_const2 = 1.0, \
+## functions for building autoencoder
+
+# Building the encoder
+def encoder(x, weights, n_layers):
+	shapes = []
+	shapes.append(x.get_shape().as_list())
+	
+	layeri = tf.nn.bias_add(tf.matmul(x, weights['enc_w0']), weights['enc_b0'])
+	layeri = tf.nn.relu(layeri)
+	shapes.append(layeri.get_shape().as_list())
+	
+	iter_i = 1
+	while iter_i < n_layers:
+		layeri = tf.nn.bias_add(tf.matmul(layeri, weights['enc_w' + str(iter_i)]), weights['enc_b' + str(iter_i)])
+		layeri = tf.nn.relu(layeri)
+		shapes.append(layeri.get_shape().as_list())
+		iter_i = iter_i + 1
+	
+	layer3 = layeri
+	return  layer3, shapes
+
+# Building the decoder
+def decoder(z, weights, shapes, n_layers):	
+	layer3 = z
+	iter_i = 0
+	while iter_i < n_layers:
+		# shape_de = shapes[n_layers - iter_i - 1] 
+		layer3 = tf.nn.bias_add(tf.matmul(layer3, weights['dec_w' + str(iter_i)], transpose_b=True), weights['dec_b' + str(iter_i)])
+		layer3 = tf.nn.relu(layer3)
+		iter_i = iter_i + 1
+	return layer3
+
+
+
+class DSCModel(object):
+	def __init__(self, *, preinput_dim, n_hidden, logs_path, model_path = None, reg_const1 = 1.0, reg_const2 = 1.0, \
 				 reg = None, batch_size = 256, denoise = False):	
 		
 		self.input_dim = input_dim 
 		self.n_hidden = n_hidden # array containing the numbera of neurals for each layer
 		self.reg = reg
-		self.model_path = model_path		
-		# self.kernel_size = kernel_size		
+		self.model_path = model_path			
 		self.iter = 0
 		self.batch_size = batch_size
-		print("Initializing weights")
 		weights = self._initialize_weights()
 		
 		# model
 		self.x = tf.placeholder(tf.float32, [None, self.input_dim])
 		self.learning_rate = tf.placeholder(tf.float32, [])
 		
-		print("Building encoder")
 		if denoise == False:
 			x_input = self.x
-			latent, shape = self.encoder(x_input, weights)
+			latent, shape = encoder(x_input, weights, len(n_hidden))
 		else:
 			x_input = tf.add(self.x, tf.random_normal(shape=tf.shape(self.x), mean = 0, stddev = 0.2, dtype=tf.float32))
-			latent,shape = self.encoder(x_input, weights)
-		print("Shapes", shape)
+			latent,shape = encoder(x_input, weights, len(n_hidden))
 
 		# TODO adjust for fc network?
 		self.z_conv = tf.reshape(latent,[batch_size, -1])		
@@ -52,11 +82,8 @@ class ConvAE(object):
 		self.Coef = Coef						
 		latent_de_ft = tf.reshape(self.z_ssc, tf.shape(latent))	
 
-
-		print("Building decoder")	
-		self.x_r_ft = self.decoder(latent_de_ft, weights, shape)		
+		self.x_r_ft = decoder(latent_de_ft, weights, shape, len(n_hidden))
 		
-		print("Building saver")
 		self.saver = tf.train.Saver([v for v in tf.trainable_variables() if not (v.name.startswith("Coef"))]) 
 		
 		self.cost_ssc = 0.5*tf.reduce_sum(tf.pow(tf.subtract(self.z_conv,self.z_ssc), 2))
@@ -103,40 +130,6 @@ class ConvAE(object):
 		# all_weights[dec_name_bi] = tf.Variable(tf.zeros([1], dtype = tf.float32)) # TODO - why a single bias here?
 		all_weights[dec_name_bi] = tf.Variable(tf.zeros([self.n_hidden[0]], dtype = tf.float32)) # TODO - why a single bias here?
 		return all_weights	
-
-	
-
-	# Building the encoder
-	def encoder(self,x, weights):
-		shapes = []
-		shapes.append(x.get_shape().as_list())
-		
-		layeri = tf.nn.bias_add(tf.matmul(x, weights['enc_w0']), weights['enc_b0'])
-		layeri = tf.nn.relu(layeri)
-		shapes.append(layeri.get_shape().as_list())
-		
-		n_layers = len(self.n_hidden)
-		iter_i = 1
-		while iter_i < n_layers:
-			layeri = tf.nn.bias_add(tf.matmul(layeri, weights['enc_w' + str(iter_i)]), weights['enc_b' + str(iter_i)])
-			layeri = tf.nn.relu(layeri)
-			shapes.append(layeri.get_shape().as_list())
-			iter_i = iter_i + 1
-		
-		layer3 = layeri
-		return  layer3, shapes
-
-	# Building the decoder
-	def decoder(self, z, weights, shapes):
-		n_layers = len(self.n_hidden)		
-		layer3 = z
-		iter_i = 0
-		while iter_i < n_layers:
-			# shape_de = shapes[n_layers - iter_i - 1] 
-			layer3 = tf.nn.bias_add(tf.matmul(layer3, weights['dec_w' + str(iter_i)], transpose_b=True), weights['dec_b' + str(iter_i)])
-			layer3 = tf.nn.relu(layer3)
-			iter_i = iter_i + 1
-		return layer3
 
 
 	def selfexpressive_moduel(self,batch_size):
@@ -271,7 +264,8 @@ batch_size = 1000
 
 # TODO change to breakfast
 pretrain_dir =  os.path.join(MODEL_DIR, 'pretrain')
-model_path = os.path.join(pretrain_dir, 'model50.ckpt')
+# model_path = os.path.join(pretrain_dir, 'model50.ckpt')
+model_path = None
 logs_path = os.path.join(MODEL_DIR, 'ft', 'logs')
 
 for p in [pretrain_dir, logs_path]:
@@ -282,12 +276,12 @@ _index_in_epoch = 0
 _epochs= 0
 num_class = 48 #how many class we sample
 num_sa = 72
-batch_size_test = num_sa * num_class
+# batch_size_test = num_sa * num_class
 
 
 iter_ft = 0
 ft_times = 120
-display_step = ft_times
+display_step = 10
 alpha = 0.04
 learning_rate = 1e-3
 
@@ -304,28 +298,27 @@ print('#######################')
 ipdb.set_trace() # TODO -remove
 
 acc_= []
-for i in range(0,1): 
-	# TODO - what is happening here???
-	coil100_all_subjs = Img[i*num_sa:(i+num_class)*num_sa, :]
-	coil100_all_subjs = coil100_all_subjs.astype(float)	
-	label_all_subjs = Label[i*num_sa:(i+num_class)*num_sa]
-	label_all_subjs = label_all_subjs - label_all_subjs.min() + 1    
-	label_all_subjs = np.squeeze(label_all_subjs)  	
 
-	CAE.initlization()
-	CAE.restore()
-	Z = CAE.transform(coil100_all_subjs)	
-	for iter_ft  in range(ft_times):
-		iter_ft = iter_ft+1
-		C,l1_cost,l2_cost = CAE.finetune_fit(coil100_all_subjs,learning_rate)
-		if (iter_ft % display_step == 0) and (iter_ft >= 50):
-			print ("epoch: %.1d" % iter_ft, "cost: %.8f" % (l1_cost/float(batch_size_test)))
-			C = thrC(C,alpha)			
-			y_x, CKSym_x = post_proC(C, num_class, 12 , 8)			
-			missrate_x = err_rate(label_all_subjs,y_x)			
-			acc = 1 - missrate_x
-			print ("experiment: %d" % i,"acc: %.4f" % acc)
-	acc_.append(acc)
+flat_features = np.concatenate(features)
+flat_labels = np.concatenate(labels)
+
+CAE.initlization()
+CAE.restore()
+Z = CAE.transform(flat_features)	
+for iter_ft  in range(ft_times):
+	iter_ft = iter_ft+1
+	for batch_idx in range(0, len(flat_features), batch_size):
+		batch_features = flat_features[batch_idx : batch_idx + batch_size]
+		C,l1_cost,l2_cost = CAE.finetune_fit(batch_features,learning_rate)
+		print(batch_idx, l1_cost, l2_cost, )
+	# if (iter_ft % display_step == 0): # and (iter_ft >= 50):
+	# 	print ("epoch: %.1d" % iter_ft, "cost: %.8f" % (l1_cost/float(batch_size_test)))
+	# 	C = thrC(C,alpha)			
+	# 	y_x, CKSym_x = post_proC(C, num_class, 12 , 8)			
+	# 	missrate_x = err_rate(label_all_subjs,y_x)			
+	# 	acc = 1 - missrate_x
+	# 	print ("experiment: %d" % i,"acc: %.4f" % acc)
+# acc_.append(acc)
 	
 acc_ = np.array(acc_)
 m = np.mean(acc_)

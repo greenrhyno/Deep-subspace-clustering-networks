@@ -5,6 +5,9 @@ from os.path import join as pjoin
 # Utility functions for reading Breakfast data
 ###############################################
 
+def print_args(args):
+    print('\n'.join(['{}: {}'.format(k,v) for k,v in vars(args).items()]))
+
 def get_breakfast_data(base_path, split):
     print('Reading data...')
     label2index, _ = read_action_idx_mapping(pjoin(base_path, "mapping.txt"))
