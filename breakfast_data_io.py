@@ -13,6 +13,8 @@ def get_breakfast_data(base_path, split):
     label2index, _ = read_action_idx_mapping(pjoin(base_path, "mapping.txt"))
     video_list = read_nl_file(pjoin(base_path, split))
     data = dict()
+    data['video_names'] = video_list
+    data['label2index'] = label2index
     data['features'] = read_features(base_path, video_list)
     data['groundtruth'] = read_groundtruth(base_path, video_list, label2index)
     assert( len(data['features']) == len(data['groundtruth']) )

@@ -7,18 +7,19 @@ from dsc_model_fc import DSCAutoEncoder
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--run_name', type=str, help="Identifier for Experiment", required=True)
+parser.add_argument('--data_dir', type=str, help="Data Root Directory", default='/home/pegasus/mnt/raptor/zijia/unsup_pl/dataset/Hollywood')
 parser.add_argument('--nodes', type=str, required=True)
 # parser.add_argument('--gpu', type=str, default="0")
 parser.add_argument('--model_path', default='/home/pegasus/mnt/raptor/ryan/DSC_results')
 parser.add_argument('--lr', type=float, default=1e-3)
-parser.add_argument('--max_iter', type=int, default=500)
+parser.add_argument('--max_iter', type=int, default=10000)
 parser.add_argument('--batch_size', type=int, default=250000)
-parser.add_argument('--save_interval', type=int, default=5)
-parser.add_argument('--split', help="Name of split file (without extension)", default='split1')
+parser.add_argument('--save_interval', type=int, default=50)
+parser.add_argument('--split', help="Name of split file (without extension)", required=True)
 args = parser.parse_args()
 
 SPLIT = args.split
-DATA_BASE_PATH = '/home/pegasus/mnt/raptor/ryan/breakfast_data_fisher_idt'
+DATA_BASE_PATH = args.data_dir
 RUN_NAME = args.run_name
 MODEL_DIR = os.path.join(args.model_path, args.run_name)
 BATCH_SIZE = args.batch_size
@@ -95,5 +96,7 @@ while _epochs < args.max_iter:
     avg_cost = cost/(BATCH_SIZE)
     if old_ep < _epochs and _epochs % 5 == 0:
             print("Epoch: {} Index: {}/{} Loss: {}".format(_epochs, _index_in_epoch, len(features), avg_cost )) 
+
+AE.save_model(_epochs)
 
 print('Finished')

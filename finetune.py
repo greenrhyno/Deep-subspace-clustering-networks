@@ -8,6 +8,7 @@ from progress.bar import Bar
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--run_name', type=str, help="Identifier for Experiment", required=True)
+parser.add_argument('--data_dir', type=str, help="Data Root Directory", default='/home/pegasus/mnt/raptor/zijia/unsup_pl/dataset/Hollywood')
 parser.add_argument('--load_iter', type=int, required=True)
 parser.add_argument('--nodes', type=str, required=True)
 parser.add_argument('--lr', type=float, default=1e-3)
@@ -19,11 +20,11 @@ parser.set_defaults(evaluate=False)
 parser.add_argument('--max_iter', type=int, default=120)
 parser.add_argument('--batch_size', type=int, default=5000)
 parser.add_argument('--save_interval', type=int, default=5)
-parser.add_argument('--split', help="Name of split file (without extension)", default='split1')
+parser.add_argument('--split', help="Name of split file (without extension)", required=True)
 args = parser.parse_args()
 
 SPLIT = args.split
-DATA_BASE_PATH = '/home/pegasus/mnt/raptor/ryan/breakfast_data_fisher_idt'
+DATA_BASE_PATH = args.data_dir
 RUN_NAME = args.run_name
 RES_DIR = '/home/pegasus/mnt/raptor/ryan/DSC_results'
 MODEL_DIR = os.path.join(RES_DIR, args.run_name)

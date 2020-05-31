@@ -8,12 +8,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--run_name', type=str, help="Identifier for Experiment", required=True)
 parser.add_argument('--load_iter', type=int, required=True)
 parser.add_argument('--nodes', type=str, required=True)
+parser.add_argument('--data_dir', type=str, help="Data Root Directory", default='/home/pegasus/mnt/raptor/zijia/unsup_pl/dataset/Hollywood')
 parser.add_argument('--batch_size', type=int, default=5000)
-parser.add_argument('--split', help="Name of split file (without extension)", default='split1')
+parser.add_argument('--split', help="Name of split file (without extension)", required=True)
 args = parser.parse_args()
 
 SPLIT = args.split
-DATA_BASE_PATH = '/home/pegasus/mnt/raptor/ryan/breakfast_data_fisher_idt'
+DATA_BASE_PATH = args.data_dir
 RUN_NAME = args.run_name
 RES_DIR = '/home/pegasus/mnt/raptor/ryan/DSC_results'
 MODEL_DIR = os.path.join(RES_DIR, args.run_name)
@@ -24,6 +25,7 @@ N_CLASS = 48 # how many class we sample
 N_HIDDEN = [ int(n) for n in args.nodes.split(',') ] # num nodes per layer of encoder (mirrored in decoder)
 
 SAVE_DIR =  os.path.join(MODEL_DIR, 'finetune')
+SAVE_LABEL_DIR = os.path.join(MODEL_DIR, 'segmentation')
 LOGS_DIR = os.path.join(SAVE_DIR, 'logs')
 
 print('########################\nFINE TUNE DEEP SUBSPACE CLUSTERING\n')
@@ -53,11 +55,17 @@ DSC = DSCModelFull(
 )
 DSC.restore(model_path)
 
+# def write_predicted_labels(labels, video_name):
+#     with open(os.path.join(SAVE_LABEL_DIR, video_name), 'w') as f:
+#         f.write( ' '.join( [index2label[l] for l in labels] ) + '\n' )
+
 print('Gathering data...')
 # gather Breakfast data features
 test_data = get_breakfast_data(DATA_BASE_PATH, SPLIT + '.test')
+names = test_data['video_names']
 features = test_data['features']
 labels = test_data['groundtruth']
+label2index = test_data['label2index']
 all_features = np.concatenate(features)
 all_labels = np.concatenate(labels)
 
