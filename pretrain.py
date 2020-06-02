@@ -7,7 +7,7 @@ from dsc_model_fc import DSCAutoEncoder
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--run_name', type=str, help="Identifier for Experiment", required=True)
-parser.add_argument('--data_dir', type=str, help="Data Root Directory", default='/home/pegasus/mnt/raptor/zijia/unsup_pl/dataset/Hollywood')
+parser.add_argument('--data_dir', type=str, help="Data Root Directory", required=True)
 parser.add_argument('--nodes', type=str, required=True)
 # parser.add_argument('--gpu', type=str, default="0")
 parser.add_argument('--model_path', default='/home/pegasus/mnt/raptor/ryan/DSC_results')

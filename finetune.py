@@ -8,7 +8,7 @@ from progress.bar import Bar
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--run_name', type=str, help="Identifier for Experiment", required=True)
-parser.add_argument('--data_dir', type=str, help="Data Root Directory", default='/home/pegasus/mnt/raptor/zijia/unsup_pl/dataset/Hollywood')
+parser.add_argument('--data_dir', type=str, help="Data Root Directory", required=True)
 parser.add_argument('--load_iter', type=int, required=True)
 parser.add_argument('--nodes', type=str, required=True)
 parser.add_argument('--lr', type=float, default=1e-3)

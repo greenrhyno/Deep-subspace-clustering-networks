@@ -233,7 +233,6 @@ def best_map(L1,L2):
 			ind_cla2 = ind_cla2.astype(float)
 			G[i,j] = np.sum(ind_cla2 * ind_cla1)
 	m = Munkres()
-	# ipdb.set_trace()
 	index = m.compute(- G.T)
 	index = np.array(index)
 	c = index[:,1]
@@ -289,7 +288,7 @@ def err_rate(gt_s, s):
 	c_x = best_map(gt_s,s)
 	err_x = np.sum(gt_s[:] != c_x[:])
 	missrate = err_x.astype(float) / (gt_s.shape[0])
-	return missrate  
+	return missrate, c_x
 
 
 
