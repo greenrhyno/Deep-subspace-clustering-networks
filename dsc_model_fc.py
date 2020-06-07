@@ -20,7 +20,7 @@ from munkres import Munkres
 import scipy.io as sio
 from scipy.sparse.linalg import svds
 from sklearn.preprocessing import normalize
-import ipdb # TODO - remove
+
 
 ## Functions for building autoencoder
 

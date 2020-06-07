@@ -8,14 +8,16 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--run_name', type=str, help="Identifier for Experiment", required=True)
 parser.add_argument('--load_iter', type=int, required=True)
 parser.add_argument('--nodes', type=str, required=True)
+parser.add_argument('--n_class', type=int, required=True)
 parser.add_argument('--data_dir', type=str, help="Data Root Directory", required=True)
 parser.add_argument('--batch_size', type=int, default=5000)
 parser.add_argument('--no_save', dest='save_labels', action='store_false')
 parser.set_defaults(save_labels=True)
 parser.add_argument('--split', help="Name of split file (without extension)", required=True)
+parser.add_argument('--split_type', type=str, default='test')
 args = parser.parse_args()
 
-SPLIT = args.split
+SPLIT = "{}.{}".format(args.split, args.split_type)
 DATA_BASE_PATH = args.data_dir
 RUN_NAME = args.run_name
 RES_DIR = '/home/pegasus/mnt/raptor/ryan/DSC_results'
@@ -23,7 +25,7 @@ MODEL_DIR = os.path.join(RES_DIR, args.run_name)
 BATCH_SIZE = args.batch_size
 INPUT_DIM = 64
 SS_DIM = 12
-N_CLASS = 48 # how many class we sample
+N_CLASS = args.n_class # how many class we sample
 N_HIDDEN = [ int(n) for n in args.nodes.split(',') ] # num nodes per layer of encoder (mirrored in decoder)
 
 SAVE_DIR =  os.path.join(MODEL_DIR, 'finetune')
@@ -59,7 +61,7 @@ DSC.restore(model_path)
 
 print('Gathering data...')
 # gather Breakfast data features
-test_data = get_breakfast_data(DATA_BASE_PATH, SPLIT + '.test')
+test_data = get_breakfast_data(DATA_BASE_PATH, SPLIT)
 names = test_data['video_names']
 features = test_data['features']
 labels = test_data['groundtruth']
@@ -80,7 +82,10 @@ num_batches = len(all_features) // BATCH_SIZE + 1
 
 all_output_labels = np.array([])
 batch_idx = 0 
+first_unsaved_frame_idx = 0
+first_unsaved_vid_idx = 0
 last = False
+
 while batch_idx < len(all_features):
     batch_features = all_features[ batch_idx : batch_idx + BATCH_SIZE ]
     batch_labels = all_labels[batch_idx : batch_idx + BATCH_SIZE ]
@@ -100,24 +105,24 @@ while batch_idx < len(all_features):
         all_output_labels = np.concatenate([all_output_labels, mapped_output[ : partial_batch_len]])
     else:
         all_output_labels = np.concatenate([all_output_labels, mapped_output])
+
+    # save labels as videos are completed
+    if args.save_labels:
+        while first_unsaved_frame_idx < len(all_features) and len(all_output_labels) - first_unsaved_frame_idx >= len(features[first_unsaved_vid_idx]):
+            vid_length = len(features[first_unsaved_vid_idx])
+            vid_name = names[first_unsaved_vid_idx]
+            next_start_idx = first_unsaved_frame_idx + vid_length
+
+            write_predicted_labels(all_output_labels[first_unsaved_frame_idx : next_start_idx], vid_name)
+
+            first_unsaved_frame_idx = next_start_idx # move idx pointer to first frame not saved (first frame of next video)
+            first_unsaved_vid_idx += 1 # mark current idx as saved
+
     batch_idx = batch_idx + BATCH_SIZE # increment
 
 all_acc = np.array(all_acc)
 avg_acc = np.mean(all_acc)
 med_acc = np.median(all_acc)
 print('Final Accuracy -- Mean: {} Median: {}'.format(avg_acc, med_acc))
-
-assert(len(all_output_labels) == len(all_features))
-
-if args.save_labels:
-    print("\nWriting segmentation labels to {}...".format(SAVE_LABEL_DIR))
-    current_idx = 0
-    for idx, video_name in enumerate(names):
-        vid_length = len(features[idx])
-        next_start_idx = current_idx + vid_length
-        # if (next_start_idx <= len(all_output_labels)):
-        write_predicted_labels(all_output_labels[current_idx : next_start_idx], video_name)
-        current_idx = next_start_idx
-
 
 print('######## Finished #########')
